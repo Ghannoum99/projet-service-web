@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Authors : Jihad GHANNOUM - IATIC 5
+# Authors : Jihad GHANNOUM - Ulysse feillet - IATIC 5
 
 import logging
 import pymongo
