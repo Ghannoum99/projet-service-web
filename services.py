@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-import json
 # Authors : Ulysse Feillet - Jihad GHANNOUM - IATIC 5
 
+import json
 import logging
 import pymongo
 logging.basicConfig(level=logging.DEBUG)

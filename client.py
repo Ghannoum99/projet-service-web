@@ -1,8 +1,7 @@
 #!/usr/bin/python3
+# Authors : Ulysse Feillet - Jihad GHANNOUM - IATIC 5
+
 import json
-
-# Author : Jihad GHANNOUM - IATIC 5
-
 from suds.client import Client
 
 
