@@ -10,6 +10,7 @@ from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from spyne.util.wsgi_wrapper import run_twisted
+from textblob import TextBlob
 
 
 class DbHandlerService(ServiceBase):
@@ -22,15 +23,99 @@ class DbHandlerService(ServiceBase):
         collection.insert_one(tweet_dict)
 
 
-application = Application([DbHandlerService],
+application1 = Application([DbHandlerService],
                           tns='spyne.examples.DbHandler',
                           in_protocol=Soap11(validator='lxml'),
                           out_protocol=Soap11()
                           )
 
+
+class AuthorIdentifierService(ServiceBase):
+    @rpc(str, _returns=str)
+    def identify_author(ctx, tweet):
+        tweet_dict = json.loads(tweet)
+        return "Lidentifiant de l'auteur de ce tweet est : " + tweet_dict['author_id']
+
+
+application2 = Application([AuthorIdentifierService],
+                          tns='spyne.examples.AuthorIdentifier',
+                          in_protocol=Soap11(validator='lxml'),
+                          out_protocol=Soap11()
+                          )
+
+
+class HashtagExtractorService(ServiceBase):
+    @rpc(str, _returns=str)
+    def extract_hashtag(ctx, tweet):
+        hashtag_list = []
+        tweet_dict = json.loads(tweet)
+        if "entities" in tweet_dict:
+            if "hashtags" in tweet_dict['entities']:
+                for tag in tweet_dict['entities']['hashtags']:
+                    hashtag_list.append(tag.get('tag'))
+                    print(tag.get('tag'))
+                    print('-----------')
+
+        return str(hashtag_list)
+
+
+application3 = Application([HashtagExtractorService],
+                          tns='spyne.examples.HashtagExtractor',
+                          in_protocol=Soap11(validator='lxml'),
+                          out_protocol=Soap11()
+                          )
+
+
+class SentimentAnalyzerService(ServiceBase):
+    @rpc(str, _returns=str)
+    def sentiment_analysis(ctx, tweet):
+        tweet_dict = json.loads(tweet)
+        text = tweet_dict.get("text")
+        res = TextBlob(str(text))
+        if res.sentiment.polarity >= 0:
+            return "ce tweet est positif"
+        else:
+            return "ce tweet est négatif"
+
+
+application4 = Application([SentimentAnalyzerService],
+                           tns='spyne.examples.SentimentAnalyzer',
+                           in_protocol=Soap11(validator='lxml'),
+                           out_protocol=Soap11()
+                           )
+
+
+class TopicIdentifierService(ServiceBase):
+    @rpc(str, _returns=str)
+    def identify_topics(ctx, tweet):
+        topics_list = []
+        tweet_dict = json.loads(tweet)
+        if "context_annotations" in tweet_dict:
+            for domain in tweet_dict['context_annotations']:
+                topics_list.append(domain.get('domain').get('name'))
+                print(domain.get('domain').get('name'))
+                print('-----------')
+
+        return str(topics_list)
+
+
+application5 = Application([TopicIdentifierService],
+                           tns='spyne.examples.TopicIdentifier',
+                           in_protocol=Soap11(validator='lxml'),
+                           out_protocol=Soap11()
+                           )
+
 if __name__ == '__main__':
-    wsgi_app = WsgiApplication(application)
+    wsgi_app1 = WsgiApplication(application1)
+    wsgi_app2 = WsgiApplication(application2)
+    wsgi_app3 = WsgiApplication(application3)
+    wsgi_app4 = WsgiApplication(application4)
+    wsgi_app5 = WsgiApplication(application5)
     twisted_apps = [
-        (wsgi_app, b'DbHandlerService'),
+        (wsgi_app1, b'DbHandlerService'),
+        (wsgi_app2, b'AuthorIdentifierService'),
+        (wsgi_app3, b'HashtagExtractorService'),
+        (wsgi_app4, b'SentimentAnalyzerService'),
+        (wsgi_app5, b'TopicIdentifierService'),
     ]
     sys.exit(run_twisted(twisted_apps, 8000))
