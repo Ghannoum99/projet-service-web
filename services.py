@@ -13,6 +13,7 @@ from spyne.util.wsgi_wrapper import run_twisted
 from textblob import TextBlob
 
 
+
 class DbHandlerService(ServiceBase):
     @rpc(str)
     def save_tweet_db(ctx, tweet):
@@ -105,17 +106,37 @@ application5 = Application([TopicIdentifierService],
                            out_protocol=Soap11()
                            )
 
+
+class PostNumberByUserService(ServiceBase):
+    @rpc(str, _returns=str)
+    def getPostNumber(ctx, userId):
+        mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
+        db = mongodb_client["td2_services_web"]
+        collection = db["Tweets"]
+        post_number = collection.count_documents({"author_id": userId})
+        return str(post_number+1)
+
+
+application6 = Application([PostNumberByUserService],
+                           tns='spyne.examples.PostNumberByUser',
+                           in_protocol=Soap11(validator='lxml'),
+                           out_protocol=Soap11()
+                           )
+
+
 if __name__ == '__main__':
     wsgi_app1 = WsgiApplication(application1)
     wsgi_app2 = WsgiApplication(application2)
     wsgi_app3 = WsgiApplication(application3)
     wsgi_app4 = WsgiApplication(application4)
     wsgi_app5 = WsgiApplication(application5)
+    wsgi_app6 = WsgiApplication(application6)
     twisted_apps = [
         (wsgi_app1, b'DbHandlerService'),
         (wsgi_app2, b'AuthorIdentifierService'),
         (wsgi_app3, b'HashtagExtractorService'),
         (wsgi_app4, b'SentimentAnalyzerService'),
         (wsgi_app5, b'TopicIdentifierService'),
+        (wsgi_app6, b'PostNumberByUserService'),
     ]
     sys.exit(run_twisted(twisted_apps, 8000))

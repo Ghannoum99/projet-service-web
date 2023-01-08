@@ -16,6 +16,7 @@ authorIdentifierService = Client('http://localhost:8000/AuthorIdentifierService?
 hashtagExtractorService = Client('http://localhost:8000/HashtagExtractorService?wsdl', cache=NoCache())
 sentimentAnalyzerService = Client('http://localhost:8000/SentimentAnalyzerService?wsdl', cache=NoCache())
 topicIdentifierService = Client('http://localhost:8000/TopicIdentifierService?wsdl', cache=NoCache())
+postNumberByUserService = Client('http://localhost:8000/PostNumberByUserService?wsdl', cache=NoCache())
 
 
 class JsonHandler:
@@ -36,7 +37,13 @@ if __name__ == '__main__':
         #print(authorIdentifierService.service.identify_author(tweet_str))
         #print(hashtagExtractorService.service.extract_hashtag(tweet_str))
         #print(sentimentAnalyzerService.service.sentiment_analysis(tweet_str))
-        print(topicIdentifierService.service.identify_topics(tweet_str))
+        #print(topicIdentifierService.service.identify_topics(tweet_str))
+
+
+    print(postNumberByUserService.service.getPostNumber("1421560592775761923"))
+
+
+
 
 
 
