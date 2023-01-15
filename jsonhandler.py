@@ -17,6 +17,9 @@ hashtagExtractorService = Client('http://localhost:8000/HashtagExtractorService?
 sentimentAnalyzerService = Client('http://localhost:8000/SentimentAnalyzerService?wsdl', cache=NoCache())
 topicIdentifierService = Client('http://localhost:8000/TopicIdentifierService?wsdl', cache=NoCache())
 postNumberByUserService = Client('http://localhost:8000/PostNumberByUserService?wsdl', cache=NoCache())
+postNumberByHashtagService = Client('http://localhost:8000/PostNumberByHashtagService?wsdl', cache=NoCache())
+treatment_services = Client('http://localhost:8000/TreatmentServices?wsdl', cache=NoCache())
+top_k_users = Client('http://localhost:8000/TopKUsersService?wsdl', cache=NoCache())
 
 
 class JsonHandler:
@@ -32,15 +35,13 @@ class JsonHandler:
 if __name__ == '__main__':
     #jsonhandler = JsonHandler()
     #jsonhandler.read_json("versailles_tweets_100.json")
+
     for tweet in collection.find():
         tweet_str = json.dumps(tweet)
-        #print(authorIdentifierService.service.identify_author(tweet_str))
-        #print(hashtagExtractorService.service.extract_hashtag(tweet_str))
-        #print(sentimentAnalyzerService.service.sentiment_analysis(tweet_str))
-        #print(topicIdentifierService.service.identify_topics(tweet_str))
+        treatment_services.service.processing_data(tweet_str)
 
-
-    print(postNumberByUserService.service.getPostNumber("1421560592775761923"))
+    print("les 3 top utilisateurs : " + top_k_users.service.get_top_k_users(3) + "\n")
+    print("le nombre de post avec un hashtag 'jira' : " + postNumberByHashtagService.service.get_post_number_by_hashtag("['jifa']"))
 
 
 
