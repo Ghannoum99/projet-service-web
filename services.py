@@ -3,6 +3,7 @@
 
 import json
 import logging
+import itertools
 import pymongo
 
 logging.basicConfig(level=logging.DEBUG)
@@ -54,8 +55,6 @@ class HashtagExtractorService(ServiceBase):
             if "hashtags" in tweet_dict['entities']:
                 for tag in tweet_dict['entities']['hashtags']:
                     hashtag_list.append(tag.get('tag'))
-                    # print(tag.get('tag'))
-                    # print('-----------')
 
         return str(hashtag_list)
 
@@ -94,8 +93,6 @@ class TopicIdentifierService(ServiceBase):
         if "context_annotations" in tweet_dict:
             for domain in tweet_dict['context_annotations']:
                 topics_list.append(domain.get('domain').get('name'))
-                # print(domain.get('domain').get('name'))
-                # print('-----------')
 
         return str(topics_list)
 
@@ -138,15 +135,42 @@ application6 = Application([TreatmentServices],
 
 
 class TopKHashtagsService(ServiceBase):
-    @rpc(str, _returns=str)
+    @rpc(Integer, _returns=str)
     def get_top_k_hashtags(ctx, k):
+        hashtags = list()
+        tags = list()
+        top_k_hashtags = list()
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
-        results = list(collection.aggregate([
-            {"$group": {"_id": "$author_id", "count": {"$sum": 1}}},
+        result = list(collection.aggregate([
+            {"$group": {"_id": "$hashtags", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ]))
+
+        for i in range(len(result)):
+            hashtags.append(str(result[i]["_id"]).replace("['", "").replace("']", "").replace("'", "").replace(",", ""))
+            x = hashtags[i].split()
+            tags += x
+
+        tags_list = [x for x in tags if x != '[]']
+
+        if k <= len(tags_list):
+            for i in range(k):
+                top_k_hashtags.append(max(set(tags_list), key=tags_list.count))
+                tags_list = list(filter((top_k_hashtags[i]).__ne__, tags_list))
+
+        else:
+            return "K is greater than the length of the hashtags list"
+
+        return str(top_k_hashtags)
+
+
+application7 = Application([TopKHashtagsService],
+                           tns='spyne.examples.topKHashtags',
+                           in_protocol=Soap11(validator='lxml'),
+                           out_protocol=Soap11()
+                           )
 
 
 class TopKUsersService(ServiceBase):
@@ -157,14 +181,16 @@ class TopKUsersService(ServiceBase):
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
 
-        results = list(collection.aggregate([
+        result = list(collection.aggregate([
             {"$group": {"_id": "$author_id", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ]))
 
-        if k <= len(results):
+        if k <= len(result):
             for i in range(k):
-                top_k_users.append(results[i]["_id"])
+                top_k_users.append(result[i]["_id"])
+        else:
+            return "K is greater than the length of the users list"
 
         return str(top_k_users)
 
@@ -177,9 +203,42 @@ application8 = Application([TopKUsersService],
 
 
 class TopKTopicsService(ServiceBase):
-    @rpc(str, _returns=str)
+    @rpc(Integer, _returns=str)
     def get_top_k_topics(ctx, k):
-        pass
+        topics = list()
+        topics_list = list()
+        top_k_topics = list()
+        mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
+        db = mongodb_client["td2_services_web"]
+        collection = db["treatment_results"]
+        result = list(collection.aggregate([
+            {"$group": {"_id": "$topics", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]))
+
+        for i in range(len(result)):
+            topics.append(str(result[i]["_id"]).replace("['", "").replace("']", "").replace("'", "").replace(",", ""))
+            x = topics[i].split()
+            topics_list += x
+
+        list_of_topics = [x for x in topics_list if x != '[]']
+
+        if k <= len(list_of_topics):
+            for i in range(k):
+                top_k_topics.append(max(set(list_of_topics), key=list_of_topics.count))
+                list_of_topics = list(filter((top_k_topics[i]).__ne__, list_of_topics))
+
+        else:
+            return "K is greater than the length of the topics list"
+
+        return str(top_k_topics)
+
+
+application9 = Application([TopKTopicsService],
+                           tns='spyne.examples.topKTopics',
+                           in_protocol=Soap11(validator='lxml'),
+                           out_protocol=Soap11()
+                           )
 
 
 class PostNumberByUserService(ServiceBase):
@@ -188,7 +247,7 @@ class PostNumberByUserService(ServiceBase):
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
-        result = list(collection.aggregate([{ "$match" : { "author_id" : userId } } ] ))
+        result = list(collection.aggregate([{"$match": {"author_id": userId}}]))
         return str(len(result))
 
 
@@ -205,8 +264,8 @@ class PostNumberByHashtagService(ServiceBase):
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
-        hashtags = list(collection.find({"hashtags": hashtag}))
-
+        hashtags = list(collection.find({"hashtags": "jifa"}))
+        print(hashtags)
         return str(len(hashtags))
 
 
@@ -217,6 +276,43 @@ application11 = Application([PostNumberByHashtagService],
                             )
 
 
+class PostNumberByTopicService(ServiceBase):
+    @rpc(str, _returns=str)
+    def get_post_number_by_topic(ctx, topic):
+        mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
+        db = mongodb_client["td2_services_web"]
+        collection = db["treatment_results"]
+        topics = list(collection.find({"topics": 'Person'}))
+        print(topics)
+
+        return str(len(topics))
+
+
+application12 = Application([PostNumberByTopicService],
+                            tns='spyne.examples.PostNumberByTopic',
+                            in_protocol=Soap11(validator='lxml'),
+                            out_protocol=Soap11()
+                            )
+
+
+class AnalysisServices(ServiceBase):
+    @rpc(Integer, str, str, str, _returns=str)
+    def analyze_services(ctx, k, author_id, hashtag, topic):
+        TopKHashtagsService.get_top_k_hashtags(ctx, k)
+        TopKUsersService.get_top_k_users(ctx, k)
+        TopKTopicsService(ctx, k)
+        PostNumberByUserService.get_post_number_by_user(ctx, author_id)
+        PostNumberByHashtagService.get_post_number_by_hashtag(ctx, hashtag)
+        PostNumberByTopicService.get_post_number_by_topic(ctx, topic)
+        return "hello"
+
+
+application13 = Application([AnalysisServices],
+                                 tns='spyne.examples.analysisServices',
+                                 in_protocol=Soap11(validator='lxml'),
+                                 out_protocol=Soap11()
+                                 )
+
 if __name__ == '__main__':
     wsgi_app1 = WsgiApplication(application1)
     wsgi_app2 = WsgiApplication(application2)
@@ -224,9 +320,13 @@ if __name__ == '__main__':
     wsgi_app4 = WsgiApplication(application4)
     wsgi_app5 = WsgiApplication(application5)
     wsgi_app6 = WsgiApplication(application6)
+    wsgi_app7 = WsgiApplication(application7)
     wsgi_app8 = WsgiApplication(application8)
+    wsgi_app9 = WsgiApplication(application9)
     wsgi_app10 = WsgiApplication(application10)
     wsgi_app11 = WsgiApplication(application11)
+    wsgi_app12 = WsgiApplication(application12)
+    wsgi_app13 = WsgiApplication(application13)
     twisted_apps = [
         (wsgi_app1, b'DbHandlerService'),
         (wsgi_app2, b'AuthorIdentifierService'),
@@ -234,8 +334,12 @@ if __name__ == '__main__':
         (wsgi_app4, b'SentimentAnalyzerService'),
         (wsgi_app5, b'TopicIdentifierService'),
         (wsgi_app6, b'TreatmentServices'),
+        (wsgi_app7, b'TopKHashtagsService'),
         (wsgi_app8, b'TopKUsersService'),
+        (wsgi_app9, b'TopKTopicsService'),
         (wsgi_app10, b'PostNumberByUserService'),
         (wsgi_app11, b'PostNumberByHashtagService'),
+        (wsgi_app12, b'PostNumberByTopicService'),
+        (wsgi_app11, b'AnalysisServices'),
     ]
     sys.exit(run_twisted(twisted_apps, 8000))
