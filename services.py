@@ -1,18 +1,17 @@
 #!/usr/bin/python3
-# Authors : Ulysse Feillet - Jihad GHANNOUM - IATIC 5
+# Authors : Ulysse Feillet - Jihad GHANNOUM - Rim Sliti - IATIC 5
+# Projet SOA : Traitement et analyse de données de réseaux sociaux à base de Services Web
 
 import json
 import logging
-import itertools
 import pymongo
-
-logging.basicConfig(level=logging.DEBUG)
 import sys
-from spyne import Application, rpc, ServiceBase, Unicode, Integer
+from spyne import Application, rpc, ServiceBase, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from spyne.util.wsgi_wrapper import run_twisted
 from textblob import TextBlob
+logging.basicConfig(level=logging.DEBUG)
 
 
 class DbHandlerService(ServiceBase):
@@ -91,8 +90,8 @@ class TopicIdentifierService(ServiceBase):
         topics_list = []
         tweet_dict = json.loads(tweet)
         if "context_annotations" in tweet_dict:
-            for domain in tweet_dict['context_annotations']:
-                topics_list.append(domain.get('domain').get('name'))
+            for entity in tweet_dict['context_annotations']:
+                topics_list.append(entity.get('entity').get('name'))
 
         return str(topics_list)
 
@@ -105,7 +104,7 @@ application5 = Application([TopicIdentifierService],
 
 
 class TreatmentServices(ServiceBase):
-    @rpc(str)
+    @rpc(str, _returns=str)
     def processing_data(ctx, tweet):
         result = {"author_id": "",
                   "hashtags": "",
@@ -125,6 +124,8 @@ class TreatmentServices(ServiceBase):
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
         collection.insert_one(result)
+
+        return str(result)
 
 
 application6 = Application([TreatmentServices],
@@ -261,12 +262,21 @@ application10 = Application([PostNumberByUserService],
 class PostNumberByHashtagService(ServiceBase):
     @rpc(str, _returns=str)
     def get_post_number_by_hashtag(ctx, hashtag):
+        hashtags = list()
+        tags = list()
+        cpt = 0
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
-        hashtags = list(collection.find({"hashtags": "jifa"}))
-        print(hashtags)
-        return str(len(hashtags))
+        result = collection.distinct("hashtags")
+
+        for i in result:
+            x = json.loads(i.replace("'", '"'))
+            hashtags = list(dict.fromkeys(list(x)))
+            if hashtag in hashtags:
+                cpt += 1
+
+        return str(cpt)
 
 
 application11 = Application([PostNumberByHashtagService],
@@ -279,13 +289,20 @@ application11 = Application([PostNumberByHashtagService],
 class PostNumberByTopicService(ServiceBase):
     @rpc(str, _returns=str)
     def get_post_number_by_topic(ctx, topic):
+        topics = list()
+        cpt = 0
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
         db = mongodb_client["td2_services_web"]
         collection = db["treatment_results"]
-        topics = list(collection.find({"topics": 'Person'}))
-        print(topics)
+        cursor = list(collection.distinct("topics"))
 
-        return str(len(topics))
+        for i in cursor:
+            x = json.loads(i.replace("'", '"'))
+            topics = list(dict.fromkeys(list(x)))
+            if topic in topics:
+                cpt += 1
+
+        return str(cpt)
 
 
 application12 = Application([PostNumberByTopicService],
@@ -298,20 +315,25 @@ application12 = Application([PostNumberByTopicService],
 class AnalysisServices(ServiceBase):
     @rpc(Integer, str, str, str, _returns=str)
     def analyze_services(ctx, k, author_id, hashtag, topic):
-        TopKHashtagsService.get_top_k_hashtags(ctx, k)
-        TopKUsersService.get_top_k_users(ctx, k)
-        TopKTopicsService(ctx, k)
-        PostNumberByUserService.get_post_number_by_user(ctx, author_id)
-        PostNumberByHashtagService.get_post_number_by_hashtag(ctx, hashtag)
-        PostNumberByTopicService.get_post_number_by_topic(ctx, topic)
-        return "hello"
+        top_k_hashtags = TopKHashtagsService.get_top_k_hashtags(ctx, k)
+        top_k_users = TopKUsersService.get_top_k_users(ctx, k)
+        top_k_topics = TopKTopicsService.get_top_k_topics(ctx, k)
+        post_number_by_user = PostNumberByUserService.get_post_number_by_user(ctx, author_id)
+        post_number_by_hashtag = PostNumberByHashtagService.get_post_number_by_hashtag(ctx, hashtag)
+        post_number_by_topic = PostNumberByTopicService.get_post_number_by_topic(ctx, topic)
+        return "The top " + str(k) + " users : " + top_k_users + "\n" + \
+               "The top " + str(k) + " hashtags : " + top_k_hashtags + "\n" + \
+               "The top " + str(k) + " topics : " + top_k_topics + "\n" + \
+               "The number of post by user " + "\"" + author_id + "\"" + " : " + post_number_by_user + "\n" \
+               "The number of post by hashtag " + "\"" + hashtag + "\"" + " : " + post_number_by_hashtag + "\n" + \
+               "The number of post by topic " + "\"" + topic + "\"" + " : " + post_number_by_topic + "\n"
 
 
 application13 = Application([AnalysisServices],
-                                 tns='spyne.examples.analysisServices',
-                                 in_protocol=Soap11(validator='lxml'),
-                                 out_protocol=Soap11()
-                                 )
+                            tns='spyne.examples.analysisServices',
+                            in_protocol=Soap11(validator='lxml'),
+                            out_protocol=Soap11()
+                            )
 
 if __name__ == '__main__':
     wsgi_app1 = WsgiApplication(application1)
@@ -340,6 +362,6 @@ if __name__ == '__main__':
         (wsgi_app10, b'PostNumberByUserService'),
         (wsgi_app11, b'PostNumberByHashtagService'),
         (wsgi_app12, b'PostNumberByTopicService'),
-        (wsgi_app11, b'AnalysisServices'),
+        (wsgi_app13, b'AnalysisServices'),
     ]
     sys.exit(run_twisted(twisted_apps, 8000))
