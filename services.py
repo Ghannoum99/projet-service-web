@@ -19,8 +19,8 @@ class DbHandlerService(ServiceBase):
     def save_tweet_db(ctx, tweet):
         tweet_dict = json.loads(tweet)
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
-        collection = db["Tweets"]
+        db = mongodb_client["Tweets"]
+        collection = db["tweets"]
         collection.insert_one(tweet_dict)
 
 
@@ -29,6 +29,9 @@ application1 = Application([DbHandlerService],
                            in_protocol=Soap11(validator='lxml'),
                            out_protocol=Soap11()
                            )
+
+
+"""   Treatment Services """
 
 
 class AuthorIdentifierService(ServiceBase):
@@ -135,6 +138,9 @@ application6 = Application([TreatmentServices],
                            )
 
 
+"""   Analysis Services """
+
+
 class TopKHashtagsService(ServiceBase):
     @rpc(Integer, _returns=str)
     def get_top_k_hashtags(ctx, k):
@@ -142,7 +148,7 @@ class TopKHashtagsService(ServiceBase):
         tags = list()
         top_k_hashtags = list()
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
         result = list(collection.aggregate([
             {"$group": {"_id": "$hashtags", "count": {"$sum": 1}}},
@@ -179,7 +185,7 @@ class TopKUsersService(ServiceBase):
     def get_top_k_users(ctx, k):
         top_k_users = list()
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
 
         result = list(collection.aggregate([
@@ -210,7 +216,7 @@ class TopKTopicsService(ServiceBase):
         topics_list = list()
         top_k_topics = list()
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
         result = list(collection.aggregate([
             {"$group": {"_id": "$topics", "count": {"$sum": 1}}},
@@ -246,7 +252,7 @@ class PostNumberByUserService(ServiceBase):
     @rpc(str, _returns=str)
     def get_post_number_by_user(ctx, userId):
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
         result = list(collection.aggregate([{"$match": {"author_id": userId}}]))
         return str(len(result))
@@ -266,7 +272,7 @@ class PostNumberByHashtagService(ServiceBase):
         tags = list()
         cpt = 0
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
         result = collection.distinct("hashtags")
 
@@ -292,7 +298,7 @@ class PostNumberByTopicService(ServiceBase):
         topics = list()
         cpt = 0
         mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = mongodb_client["td2_services_web"]
+        db = mongodb_client["TreatmentResults"]
         collection = db["treatment_results"]
         cursor = list(collection.distinct("topics"))
 
